@@ -32,6 +32,12 @@ final class StatusItemController: NSObject {
             name: NSWorkspace.activeSpaceDidChangeNotification, object: nil
         )
 
+        // Quitting from the open panel must still release the menu bar.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(willTerminate),
+            name: NSApplication.willTerminateNotification, object: nil
+        )
+
         observe()
     }
 
@@ -89,6 +95,7 @@ final class StatusItemController: NSObject {
         panel.setFrame(NSRect(x: x, y: y, width: Theme.panelWidth, height: height), display: true)
 
         isShown = true
+        postMenuTracking(began: true)
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
         NSAnimationContext.runAnimationGroup { context in
@@ -97,7 +104,10 @@ final class StatusItemController: NSObject {
         } completionHandler: { [weak self] in
             MainActor.assumeIsolated { self?.panel.invalidateShadow() }
         }
-        button.highlight(true)
+        // The status button clears its own highlight when the click ends, so set it afterwards.
+        DispatchQueue.main.async { [weak self] in
+            if self?.isShown == true { button.highlight(true) }
+        }
 
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
@@ -109,6 +119,7 @@ final class StatusItemController: NSObject {
     func hidePanel() {
         guard isShown else { return }
         isShown = false
+        postMenuTracking(began: false)
         if let monitor = outsideClickMonitor {
             NSEvent.removeMonitor(monitor)
             outsideClickMonitor = nil
@@ -124,6 +135,17 @@ final class StatusItemController: NSObject {
                 self.model.showingSettings = false
             }
         }
+    }
+
+    /// Tells the system a menu is open, like real status menus do: an auto-hiding menu bar
+    /// stays down while the panel is up, and other menu bar menus close.
+    private func postMenuTracking(began: Bool) {
+        let name = began ? "com.apple.HIToolbox.beginMenuTrackingNotification" : "com.apple.HIToolbox.endMenuTrackingNotification"
+        DistributedNotificationCenter.default().post(name: .init(name), object: nil)
+    }
+
+    @objc private func willTerminate() {
+        if isShown { postMenuTracking(began: false) }
     }
 
     @objc private func spaceChanged() {

@@ -24,6 +24,7 @@ A macOS 26 menu bar Pomodoro timer. SwiftPM only (no Xcode project), Swift 6 str
 - The glass sits inside a rounded `masksToBounds` container. Without it, the window shadow shows square corners.
 - Panel height comes from SwiftUI's `onGeometryChange`, measured per page, through `fit(height:)`. Both pages always stay laid out, so the off-screen page needs `allowsHitTesting(false)`.
 - Position the panel from `screen.visibleFrame.maxY`, the real menu bar edge. If the menu bar auto-hides, fall back to the notch/bar height. The user sometimes has an external display connected.
+- While the panel is open, `StatusItemController` posts the distributed `com.apple.HIToolbox.begin/endMenuTrackingNotification`. That keeps an auto-hiding menu bar down like a real menu does, and closes other menu bar menus. Every hide path, including quitting, must post the end notification.
 - The panel becomes key, so it takes keystrokes while open. Don't add keyboard shortcuts to it (the user removed space for play/pause).
 - Custom glyphs must be template `NSImage`s (see `ResetArrow.image`). A plain SwiftUI `Shape` misses the glass panel's vibrancy and looks much lighter than the SF Symbols next to it.
 - Launch at login turns itself on once, and only when the app runs from `/Applications`.
