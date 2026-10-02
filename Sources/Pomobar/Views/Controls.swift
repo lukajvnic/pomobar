@@ -1,29 +1,40 @@
 import SwiftUI
 
-/// Flat circular button in the style of Control Center modules.
-struct RoundButton: View {
-    var symbol: String
-    var diameter: CGFloat = 40
-    var tint: Color? = nil
+/// Bare gray glyph that darkens on hover, like the system Now Playing controls.
+struct RoundButton<Glyph: View>: View {
+    var size: CGFloat = 16
     var action: () -> Void
+    @ViewBuilder var glyph: Glyph
 
     @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: diameter * 0.36, weight: .semibold))
-                .foregroundStyle(tint == nil ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
-                .contentTransition(.symbolEffect(.replace))
-                .frame(width: diameter, height: diameter)
-                .background {
-                    Circle().fill(tint.map { AnyShapeStyle($0) } ?? AnyShapeStyle(.primary.opacity(hovering ? 0.14 : 0.09)))
-                }
-                .brightness(tint != nil && hovering ? 0.04 : 0)
-                .contentShape(Circle())
+            glyph
+                .foregroundStyle(.primary.opacity(hovering ? 0.85 : 0.6))
+                .frame(width: size * 2, height: size * 2)
+                .contentShape(.rect)
         }
         .buttonStyle(PressStyle())
         .onHover { hovering = $0 }
+    }
+}
+
+extension RoundButton where Glyph == SymbolGlyph {
+    init(symbol: String, size: CGFloat = 16, weight: Font.Weight = .regular, action: @escaping () -> Void) {
+        self.init(size: size, action: action) { SymbolGlyph(name: symbol, size: size, weight: weight) }
+    }
+}
+
+struct SymbolGlyph: View {
+    var name: String
+    var size: CGFloat
+    var weight: Font.Weight
+
+    var body: some View {
+        Image(systemName: name)
+            .font(.system(size: size, weight: weight))
+            .contentTransition(.symbolEffect(.replace))
     }
 }
 

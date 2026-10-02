@@ -7,8 +7,8 @@ enum Theme {
     /// Calm blue for breaks.
     static let rest = dynamic(light: (0.24, 0.50, 0.85), dark: (0.36, 0.60, 0.93))
 
-    static let panelWidth: CGFloat = 300
-    static let panelCorner: CGFloat = 18
+    static let panelWidth: CGFloat = 260
+    static let panelCorner: CGFloat = 16
 
     static func color(for phase: Phase) -> NSColor {
         phase == .work ? work : rest

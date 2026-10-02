@@ -17,10 +17,13 @@ struct SettingsView: View {
                     .help("Back")
                 Text("Settings")
                     .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                PlainButton(title: "Quit") { NSApp.terminate(nil) }
+                    .padding(.trailing, -6)
             }
             .padding(.leading, -6)
-            .frame(height: 28)
-            .padding(.bottom, 10)
+            .frame(height: 26)
+            .padding(.bottom, 8)
 
             ToggleRow(symbol: "bell", title: "Alarm sound", isOn: Binding(
                 get: { prefs.soundOn }, set: { prefs.soundOn = $0 }
@@ -33,44 +36,31 @@ struct SettingsView: View {
                 set: { model.launchAtLogin = $0; launchAtLogin = model.launchAtLogin }
             ))
 
-            Divider().padding(.vertical, 12)
+            Divider().padding(.vertical, 10)
 
-            Text("Subscribe to this topic in the ntfy iPhone app. Keep it private.")
+            Text("Subscribe to this topic in the ntfy app.")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 8)
+                .padding(.bottom, 6)
 
-            HStack(spacing: 6) {
+            HStack(spacing: 2) {
                 Text(prefs.topic)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.system(size: 11, design: .monospaced))
                     .textSelection(.enabled)
                     .lineLimit(1)
-                    .padding(.horizontal, 8)
-                    .frame(maxWidth: .infinity, minHeight: 26, alignment: .leading)
-                    .background(.primary.opacity(0.06), in: .rect(cornerRadius: 7))
-                RoundButton(symbol: copied ? "checkmark" : "doc.on.doc", diameter: 26) { copyTopic() }
+                    .padding(.horizontal, 6)
+                    .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+                    .background(.primary.opacity(0.06), in: .rect(cornerRadius: 6))
+                    .help("Anyone with this name can see your alerts, so keep it private.")
+                RoundButton(symbol: copied ? "checkmark" : "doc.on.doc", size: 12) { copyTopic() }
                     .help("Copy topic")
-            }
-            .padding(.bottom, 6)
-
-            HStack(spacing: 6) {
-                PlainButton(title: "Send test", symbol: "paperplane") { sendTest() }
+                RoundButton(symbol: testSymbol, size: 12) { sendTest() }
+                    .help(testHelp)
                     .disabled(testState == .sending)
-                Text(testLabel)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
             }
-            .padding(.leading, -6)
-
-            Spacer(minLength: 12)
-
-            PlainButton(title: "Quit Pomobar") { NSApp.terminate(nil) }
-                .padding(.leading, -6)
         }
-        .padding(16)
+        .padding(14)
         .frame(width: Theme.panelWidth)
-        .frame(maxHeight: .infinity, alignment: .top)
         .onAppear { launchAtLogin = model.launchAtLogin }
         .onChange(of: model.showingSettings) {
             launchAtLogin = model.launchAtLogin
@@ -78,10 +68,18 @@ struct SettingsView: View {
         }
     }
 
-    private var testLabel: String {
+    private var testSymbol: String {
         switch testState {
-        case .idle: ""
-        case .sending: "Sending…"
+        case .idle: "paperplane"
+        case .sending: "ellipsis"
+        case .sent: "checkmark"
+        case .failed: "exclamationmark.triangle"
+        }
+    }
+
+    private var testHelp: String {
+        switch testState {
+        case .idle, .sending: "Send a test notification"
         case .sent: "Sent. Check your phone."
         case .failed: "Couldn't reach ntfy.sh"
         }

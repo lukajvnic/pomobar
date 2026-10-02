@@ -6,7 +6,7 @@ struct DonutView: View {
     var time: String
     var caption: String
 
-    private let lineWidth: CGFloat = 12
+    private let lineWidth: CGFloat = 10
 
     var body: some View {
         ZStack {
@@ -21,20 +21,20 @@ struct DonutView: View {
                 .animation(.linear(duration: 0.25), value: progress)
                 .animation(.easeInOut(duration: 0.3), value: color)
 
-            VStack(spacing: 4) {
+            VStack(spacing: 2) {
                 Text(time)
-                    .font(.system(size: 46, weight: .light))
+                    .font(.system(size: 40, weight: .light))
                     .monospacedDigit()
                     .contentTransition(.numericText(countsDown: true))
                     .animation(.snappy(duration: 0.25), value: time)
                 Text(caption.uppercased())
-                    .font(.system(size: 11, weight: .medium))
-                    .tracking(1.4)
+                    .font(.system(size: 10, weight: .medium))
+                    .tracking(1.3)
                     .foregroundStyle(.secondary)
             }
             .offset(y: 3)
         }
-        .frame(width: 184, height: 184)
+        .frame(width: 158, height: 158)
         .padding(lineWidth / 2)
     }
 }

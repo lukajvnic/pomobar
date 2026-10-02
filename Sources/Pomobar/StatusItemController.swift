@@ -22,8 +22,8 @@ final class StatusItemController: NSObject {
             button.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         }
 
-        panel = GlassPanel(rootView: PanelView(model: model) { [weak self] size in
-            self?.panel.fit(height: size.height)
+        panel = GlassPanel(rootView: PanelView(model: model) { [weak self] height in
+            self?.panel.fit(height: height)
         })
         panel.onClose = { [weak self] in self?.hidePanel() }
 
@@ -79,9 +79,13 @@ final class StatusItemController: NSObject {
         var x = anchor.minX
         x = min(x, visible.maxX - Theme.panelWidth - 8)
         x = max(x, visible.minX + 8)
-        // With an auto-hiding menu bar the button can sit above the screen; never go past the bar/notch.
-        let menuBarBottom = screen.frame.maxY - max(NSStatusBar.system.thickness, screen.safeAreaInsets.top)
-        let y = min(anchor.minY, menuBarBottom) - 6 - height
+        // Hang straight off the bar like the system menus. Use the screen's own menu bar edge:
+        // the status item's window grows while it's being clicked, so it sits lower than the bar.
+        let barBottom = screen.visibleFrame.maxY < screen.frame.maxY
+            ? screen.visibleFrame.maxY
+            : screen.frame.maxY - max(NSStatusBar.system.thickness, screen.safeAreaInsets.top) // auto-hiding bar
+        panel.topEdge = barBottom
+        let y = barBottom - height
         panel.setFrame(NSRect(x: x, y: y, width: Theme.panelWidth, height: height), display: true)
 
         isShown = true

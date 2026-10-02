@@ -4,16 +4,12 @@ import SwiftUI
 /// Borderless Liquid Glass panel, the same material as Control Center and the battery menu.
 final class GlassPanel: NSPanel {
     var onClose: (() -> Void)?
-    private let container = NSView()
-    private let glass = NSGlassEffectView()
-    private let hosting: NSView
+    /// Bottom of the menu bar; resizing keeps the panel's top edge here.
+    var topEdge: CGFloat?
 
     init<Content: View>(rootView: Content) {
-        let hosting = NSHostingView(rootView: rootView)
-        hosting.sizingOptions = []
-        self.hosting = hosting
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: Theme.panelWidth, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: Theme.panelWidth, height: 300),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true
@@ -28,41 +24,68 @@ final class GlassPanel: NSPanel {
         isReleasedWhenClosed = false
         animationBehavior = .none
 
+        let hosting = NSHostingView(rootView: rootView)
+        hosting.sizingOptions = []
+        let glass = NSGlassEffectView()
         glass.style = .regular
         glass.cornerRadius = Theme.panelCorner
         glass.contentView = hosting
-        // Clip to the rounded shape so the window shadow follows the corners, not the rectangle.
-        container.wantsLayer = true
-        container.layer?.cornerRadius = Theme.panelCorner
-        container.layer?.cornerCurve = .continuous
-        container.layer?.masksToBounds = true
-        container.addSubview(glass)
-        contentView = container
+        contentView = GlassContainer(glass: glass)
     }
 
     override var canBecomeKey: Bool { true }
-
-    // The panel follows SwiftUI's reported height (see `fit`). Autoresizing drifts here,
-    // so pin the glass and its content to the window on every frame change.
-    override func setFrame(_ frameRect: NSRect, display flag: Bool) {
-        super.setFrame(frameRect, display: flag)
-        container.frame = NSRect(origin: .zero, size: frameRect.size)
-        glass.frame = container.bounds
-        hosting.frame = glass.bounds
-        invalidateShadow()
-    }
 
     /// Esc
     override func cancelOperation(_ sender: Any?) {
         onClose?()
     }
 
-    /// Keeps the top edge pinned while SwiftUI content changes height.
+    /// Keeps the top edge pinned while the content changes height; animated while on screen.
     func fit(height: CGFloat) {
         guard height > 0, abs(frame.height - height) > 0.5 else { return }
         var rect = frame
-        rect.origin.y = rect.maxY - height
+        rect.origin.y = (topEdge ?? rect.maxY) - height
         rect.size.height = height
-        setFrame(rect, display: true)
+        guard isVisible else {
+            setFrame(rect, display: true)
+            return
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.3
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            animator().setFrame(rect, display: true)
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated { self?.invalidateShadow() }
+        }
+    }
+}
+
+/// Rounded, clipped window content that keeps the glass and its SwiftUI content exactly
+/// window-sized. Autoresizing drifts here, so frames are pinned by hand.
+private final class GlassContainer: NSView {
+    private let glass: NSGlassEffectView
+
+    init(glass: NSGlassEffectView) {
+        self.glass = glass
+        super.init(frame: .zero)
+        // Clipping makes the window shadow follow the rounded corners, not the rectangle.
+        wantsLayer = true
+        layer?.cornerRadius = Theme.panelCorner
+        layer?.cornerCurve = .continuous
+        layer?.masksToBounds = true
+        addSubview(glass)
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    // The window sometimes applies a resize to its content view twice, leaving a strip
+    // of empty window above the glass. Always take the window's real size.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(window?.frame.size ?? newSize)
+    }
+
+    override func resizeSubviews(withOldSize oldSize: NSSize) {
+        glass.frame = bounds
+        glass.contentView?.frame = glass.bounds
     }
 }

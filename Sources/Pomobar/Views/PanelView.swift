@@ -1,28 +1,37 @@
 import SwiftUI
 
 /// Timer page and settings page side by side; the gear slides between them.
-/// Both pages stay laid out so the panel keeps one height and never resizes mid-slide.
+/// The panel takes the height of whichever page is showing.
 struct PanelView: View {
     let model: AppModel
-    var onSize: (CGSize) -> Void
+    var onHeight: (CGFloat) -> Void
+
+    @State private var timerHeight: CGFloat = 0
+    @State private var settingsHeight: CGFloat = 0
 
     var body: some View {
         let settings = model.showingSettings
+        let height = settings ? settingsHeight : timerHeight
         ZStack(alignment: .top) {
             TimerPage(model: model)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { timerHeight = $0 }
                 .offset(x: settings ? -Theme.panelWidth : 0)
                 .allowsHitTesting(!settings)
                 .accessibilityHidden(settings)
             SettingsView(model: model)
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { settingsHeight = $0 }
                 .offset(x: settings ? 0 : Theme.panelWidth)
                 .allowsHitTesting(settings)
                 .accessibilityHidden(!settings)
         }
-        .frame(width: Theme.panelWidth)
+        .frame(width: Theme.panelWidth, height: height, alignment: .top)
         .clipped()
-        .animation(.smooth(duration: 0.32), value: settings)
-        .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
+        .animation(.smooth(duration: 0.3), value: settings)
+        // The window animates its own height, so keep content pinned to the top meanwhile.
+        .frame(maxHeight: .infinity, alignment: .top)
+        .onChange(of: height, initial: true) { onHeight(height) }
     }
 }
 
@@ -43,8 +52,9 @@ private struct TimerPage: View {
                 .overlay(alignment: .trailing) {
                     PlainButton(symbol: "gearshape") { model.showingSettings = true }
                         .help("Settings")
+                        .padding(.trailing, -6)
                 }
-                .padding(.bottom, 18)
+                .padding(.bottom, 12)
 
             DonutView(
                 progress: engine.progress,
@@ -52,23 +62,20 @@ private struct TimerPage: View {
                 time: engine.secondsLeft.clock,
                 caption: caption
             )
-            .padding(.bottom, 18)
+            .padding(.bottom, 8)
 
-            HStack(spacing: 24) {
-                RoundButton(symbol: "arrow.counterclockwise") { model.reset() }
-                    .help("Restart this session")
-                RoundButton(
-                    symbol: engine.isRunning ? "pause.fill" : "play.fill",
-                    diameter: 54,
-                    tint: engine.phase.color
-                ) { model.toggle() }
+            HStack(spacing: 22) {
+                RoundButton(size: 18) { model.reset() } glyph: {
+                    Image(nsImage: ResetArrow.image)
+                }
+                .help("Restart this session")
+                RoundButton(symbol: engine.isRunning ? "pause.fill" : "play.fill", size: 24) { model.toggle() }
                     .help(engine.isRunning ? "Pause" : "Start")
-                RoundButton(symbol: "forward.end.fill") { model.skip() }
+                RoundButton(symbol: "forward.fill", size: 18) { model.skip() }
                     .help("Skip to \(engine.phase.next.title.lowercased())")
             }
         }
-        .padding(16)
-        .padding(.bottom, 4)
+        .padding(14)
         .frame(width: Theme.panelWidth)
     }
 }
